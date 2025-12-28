@@ -5,13 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Calendrier</title>
   <style>
-    /* ========== RESET / BASE ========== */
-    * { box-sizing: border-box; }
-    body {
+    :root{
+      --accent:#BE4339;
+      --text:#555;
+      --shadow: 0px 1px 4px rgba(0,0,0,0.18);
+    }
+
+    /* IMPORTANT: fond transparent pour bien se fondre dans Notion */
+    html, body {
       margin: 0;
+      padding: 0;
+      background: transparent;
       font-family: Arial, sans-serif;
-      background-color: #3b323f;
-      min-height: 100vh;
     }
 
     .wrapper {
@@ -19,76 +24,57 @@
       align-items: center;
       justify-content: center;
       flex-direction: column;
-      min-height: 100vh;
-      padding: 16px;
+      padding: 8px;
     }
 
-    button::-moz-focus-inner {
-      border: 0;
-      padding: 0;
-    }
+    button::-moz-focus-inner { border: 0; padding: 0; }
 
-    /* ========== CALENDAR WRAPPER ========== */
+    /* Le widget s’adapte bien dans un embed Notion */
     #calendari {
-      margin: 0;
       position: relative;
       overflow: hidden;
-
-      /* RESPONSIVE: prend la largeur dispo mais ne dépasse pas 350px */
-      width: 100%;
-      max-width: 350px;
-
-      height: 310px;
+      width: min(360px, 100%);
+      height: 330px;
       font-size: 14px;
-      box-shadow: 0px 1px 4px rgba(0,0,0,0.4);
+      box-shadow: var(--shadow);
       border-radius: 10px;
-      background: transparent;
+      background: #fff;
     }
 
-    /* Le tableau prend la largeur dispo (responsive) */
     table {
       border-collapse: collapse;
       table-layout: fixed;
       width: 100%;
-      box-shadow: 0px 1px 3px rgba(0,0,0,0.2);
+      box-shadow: 0px 1px 3px rgba(0,0,0,0.12);
       background-color: #fff;
       position: absolute;
       top: 0;
       left: 0;
       transform: translateX(0);
       transition: all 0.3s ease;
-      border-radius: 10px;
-      overflow: hidden;
     }
 
-    table.actiu { transform: translateX(0); }
     table.inactiu { transition: all 0.3s 0.01s ease; }
+    table.amagat-esquerra { transform: translateX(-110%); }
+    table.amagat-dreta { transform: translateX(110%); }
 
-    /* IMPORTANT: animation en % (pas en px) => plus d'étirement Notion */
-    table.amagat-esquerra { transform: translateX(-100%); }
-    table.amagat-dreta { transform: translateX(100%); }
-
-    td, th {
-      text-align: center;
-      background-color: #fff;
-    }
-
-    th {
-      padding: 10px;
-      border-top: 1px solid rgba(0,0,0,0.1);
-      border-right: 1px solid rgba(0,0,0,0.1);
-      background-color: #BE4339;
-      color: #fff;
-      text-shadow: 0px -1px 0px rgba(0,0,0,0.2);
-      font-weight: normal;
-    }
+    td, th { text-align: center; background-color: #fff; }
+    th { padding: 10px; }
 
     tr:first-child th {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
       border-left: none;
       border-top: none;
-      position: relative;
+    }
+
+    th {
+      border-top: 1px solid rgba(0,0,0,0.08);
+      border-right: 1px solid rgba(0,0,0,0.08);
+      background-color: var(--accent);
+      color: #fff;
+      text-shadow: 0px -1px 0px rgba(0,0,0,0.15);
+      font-weight: normal;
     }
 
     th .any {
@@ -96,129 +82,86 @@
       font-weight: normal;
       display: block;
       text-shadow: none;
-      color: rgba(0,0,0,0.35);
-      margin-top: 2px;
+      color: rgba(255,255,255,0.7);
     }
 
-    /* Ligne jours (Lun..Dim) */
-    tr:nth-child(2) th {
-      padding: 6px 0;
-      font-size: 13px;
-      white-space: nowrap;
-    }
-
-    td {
-      padding: 0;
-      border-bottom: 1px solid rgba(0,0,0,0.05);
-    }
+    tr:nth-child(2) th { padding: 6px; }
+    td { padding: 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
 
     td > span {
-      color: #555;
-      padding: 10px 0;
+      color: var(--text);
+      padding: 10px;
       display: block;
       border: 2px solid transparent;
-      transition: border 0.3s ease;
+      transition: background 0.2s ease, color 0.2s ease;
     }
 
-    td:nth-child(even) > span {
-      background-color: rgba(0,0,0,0.02);
-    }
+    td:nth-child(even) > span { background-color: rgba(0,0,0,0.02); }
 
-    /* Samedi + Dimanche en rouge (col 6 et 7 car semaine commence lundi) */
+    /* Week-end: Sam + Dim (col 6 et 7 car Lundi = 1) */
     td:nth-child(6) > span,
-    td:nth-child(7) > span {
-      color: #BE4339;
-    }
+    td:nth-child(7) > span { color: var(--accent); }
 
     td.avui > span {
       font-weight: bold;
-      background-color: #BE4339;
+      background-color: var(--accent);
       color: #fff;
-      border: 2px solid rgba(0,0,0,0.1);
+      border: 2px solid rgba(0,0,0,0.08);
     }
 
-    td.fora > span { opacity: 0.2; }
+    td.fora > span { opacity: 0.25; }
+    td > span:hover { background: var(--accent); color: #fff; cursor: default; }
 
-    td > span:hover {
-      background: #BE4339;
-      color: #fff;
-    }
-
-    /* ========== BUTTONS ========== */
     .boto-next, .boto-prev {
-      background: rgba(0,0,0,0.1);
+      background: rgba(255,255,255,0.15);
       color: #fff;
       font-family: inherit;
       border: none;
       font-size: 18px;
       font-weight: bold;
-      text-shadow: inherit;
       padding: 2px 10px 5px 10px;
       line-height: 1px;
       height: 30px;
       width: 30px;
-      vertical-align: middle;
       border-radius: 100%;
       position: absolute;
-      top: 15px;
+      top: 12px;
     }
-
     .boto-next { right: 10px; padding-left: 13px; }
     .boto-prev { left: 10px; padding-right: 13px; }
 
-    .boto-next:hover,
-    .boto-prev:hover { background: rgba(0,0,0,0.2); }
-
-    button:hover { cursor: pointer; }
+    .boto-next:hover, .boto-prev:hover { background: rgba(255,255,255,0.25); cursor: pointer; }
     button:focus { outline: none; }
 
     footer {
-      text-align: center;
-      color: #ddd;
-      font-weight: normal;
-      text-shadow: 0px -1px 0px rgba(0, 0, 0, 0.2);
-      font-size: 0.9em;
-      padding: 14px 0 0;
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: 0.6;
     }
-
-    footer a,
-    footer a:link {
-      color: #fff;
-      text-decoration: none;
-    }
-
-    /* Optionnel: sur mobile ultra étroit, on réduit un peu */
-    @media (max-width: 360px) {
-      #calendari { max-width: 320px; height: 300px; }
-      tr:first-child th { font-size: 18px; }
-      td > span { padding: 9px 0; }
-    }
+    footer a { color: #000; text-decoration: none; }
   </style>
 </head>
 
 <body>
   <div class="wrapper">
     <div id="calendari"></div>
-    <footer><a href="https://proplanbloom.etsy.com">@proplanbloom</a></footer>
+    <footer><a href="https://proplanbloom.etsy.com" target="_blank" rel="noreferrer">@proplanbloom</a></footer>
   </div>
 
   <script>
-    var mesos = [
-      'Janvier','Février','Mars','Avril','Mai','Juin',
-      'Juillet','Août','Septembre','Octobre','Novembre','Décembre'
-    ];
+    var mesos = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
-    // Affichage en en-tête: LUN -> DIM
+    // Lundi premier jour
     var dies_abr = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
     Number.prototype.pad = function(num) {
       var str = '';
       for (var i = 0; i < (num - this.toString().length); i++) str += '0';
-      return str + this.toString();
-    };
+      return str += this.toString();
+    }
 
-    // Convertit JS getDay(): 0=Dim..6=Sam vers index LUN=0..DIM=6
-    function dayIndexMondayFirst(jsDay) {
+    function mondayIndex(jsDay /* 0=Dim .. 6=Sam */) {
+      // convertit en: 0=Lun .. 6=Dim
       return (jsDay + 6) % 7;
     }
 
@@ -227,9 +170,10 @@
 
       if (typeof original === 'undefined') {
         original = document.createElement('table');
-        original.setAttribute(
-          'data-actual',
-          data.getFullYear() + '/' + data.getMonth().pad(2) + '/' + data.getDate().pad(2)
+        original.setAttribute('data-actual',
+          data.getFullYear() + '/' +
+          data.getMonth().pad(2) + '/' +
+          data.getDate().pad(2)
         );
         widget.appendChild(original);
       }
@@ -242,9 +186,10 @@
       e.innerHTML = '';
       widget.appendChild(e);
 
-      e.setAttribute(
-        'data-actual',
-        data.getFullYear() + '/' + data.getMonth().pad(2) + '/' + data.getDate().pad(2)
+      e.setAttribute('data-actual',
+        data.getFullYear() + '/' +
+        data.getMonth().pad(2) + '/' +
+        data.getDate().pad(2)
       );
 
       // Titre
@@ -269,7 +214,6 @@
         data.setMonth(data.getMonth() - 1);
         calendari(widget, data);
       };
-
       boto_next.onclick = function() {
         data.setMonth(data.getMonth() + 1);
         calendari(widget, data);
@@ -278,50 +222,44 @@
       fila.appendChild(titol);
       e.appendChild(fila);
 
-      // Entête jours (Lun..Dim)
+      // Header jours (Lun->Dim)
       fila = document.createElement('tr');
       for (var i = 0; i < 7; i++) {
         fila.innerHTML += '<th>' + dies_abr[i] + '</th>';
       }
       e.appendChild(fila);
 
-      // Premier jour du mois (1)
+      // Grille: on part du lundi avant le 1er du mois
       var firstOfMonth = new Date(data.getFullYear(), data.getMonth(), 1);
-      var startIndex = dayIndexMondayFirst(firstOfMonth.getDay()); // 0..6, lun=0
+      var offset = mondayIndex(firstOfMonth.getDay()); // 0..6
+      var actual = new Date(data.getFullYear(), data.getMonth(), 1 - offset);
 
-      // Date de départ du calendrier (lundi de la 1ère semaine affichée)
-      var actual = new Date(data.getFullYear(), data.getMonth(), 1 - startIndex);
+      var today = new Date();
+      var todayY = today.getFullYear(), todayM = today.getMonth(), todayD = today.getDate();
 
       // 6 semaines
       for (var s = 0; s < 6; s++) {
-        var filaSetmana = document.createElement('tr');
+        var row = document.createElement('tr');
 
         for (var d = 0; d < 7; d++) {
-          var cela = document.createElement('td');
+          var cell = document.createElement('td');
           var span = document.createElement('span');
-          cela.appendChild(span);
+          cell.appendChild(span);
 
           span.innerHTML = actual.getDate();
 
-          if (actual.getMonth() !== data.getMonth()) {
-            cela.className = 'fora';
-          }
+          if (actual.getMonth() !== data.getMonth()) cell.className = 'fora';
 
-          // Aujourd'hui
-          var today = new Date();
-          if (
-            actual.getDate() === today.getDate() &&
-            actual.getMonth() === today.getMonth() &&
-            actual.getFullYear() === today.getFullYear()
-          ) {
-            cela.className = 'avui';
+          // "Aujourd’hui"
+          if (actual.getFullYear() === todayY && actual.getMonth() === todayM && actual.getDate() === todayD) {
+            cell.className = 'avui';
           }
 
           actual.setDate(actual.getDate() + 1);
-          filaSetmana.appendChild(cela);
+          row.appendChild(cell);
         }
 
-        e.appendChild(filaSetmana);
+        e.appendChild(row);
       }
 
       setTimeout(function() {
@@ -333,9 +271,7 @@
 
       setTimeout(function() {
         var inactius = document.getElementsByClassName('inactiu');
-        for (var i = inactius.length - 1; i >= 0; i--) {
-          widget.removeChild(inactius[i]);
-        }
+        for (var i = 0; i < inactius.length; i++) widget.removeChild(inactius[i]);
       }, 1000);
     }
 
