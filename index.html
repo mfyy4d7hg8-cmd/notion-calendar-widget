@@ -9,32 +9,45 @@
       --accent:#BE4339;
       --text:#555;
       --shadow: 0px 1px 4px rgba(0,0,0,0.18);
+
+      /* Sera calculé en JS en fonction de la hauteur dispo */
+      --cell-h: 44px;
+      --cell-pad: 6px;
     }
 
     /* IMPORTANT: fond transparent pour bien se fondre dans Notion */
     html, body {
       margin: 0;
       padding: 0;
+      width: 100%;
+      height: 100%;
       background: transparent;
       font-family: Arial, sans-serif;
+      box-sizing: border-box;
     }
+    *, *::before, *::after { box-sizing: inherit; }
 
+    /* Le contenu prend toute la hauteur/largeur de l'embed */
     .wrapper {
+      height: 100vh;          /* = hauteur de l'iframe (embed Notion) */
+      width: 100vw;           /* = largeur de l'iframe */
       display: flex;
-      align-items: center;
-      justify-content: center;
       flex-direction: column;
+      gap: 8px;
       padding: 8px;
+      align-items: stretch;
+      justify-content: stretch;
     }
 
     button::-moz-focus-inner { border: 0; padding: 0; }
 
-    /* Le widget s’adapte bien dans un embed Notion */
+    /* Le widget s’adapte à la taille de l'embed */
     #calendari {
       position: relative;
       overflow: hidden;
-      width: min(360px, 100%);
-      height: 330px;
+      width: 100%;
+      flex: 1 1 auto;         /* prend tout l'espace dispo (reste après le footer) */
+      min-height: 240px;      /* évite un rendu trop petit */
       font-size: 14px;
       box-shadow: var(--shadow);
       border-radius: 10px;
@@ -45,11 +58,10 @@
       border-collapse: collapse;
       table-layout: fixed;
       width: 100%;
-      box-shadow: 0px 1px 3px rgba(0,0,0,0.12);
+      height: 100%;           /* IMPORTANT: table prend toute la hauteur du conteneur */
       background-color: #fff;
       position: absolute;
-      top: 0;
-      left: 0;
+      inset: 0;
       transform: translateX(0);
       transition: all 0.3s ease;
     }
@@ -59,14 +71,18 @@
     table.amagat-dreta { transform: translateX(110%); }
 
     td, th { text-align: center; background-color: #fff; }
-    th { padding: 10px; }
 
+    /* Header mois */
     tr:first-child th {
-      font-size: 18px;
+      font-size: clamp(14px, 2.2vh, 18px);
       font-weight: bold;
       border-left: none;
       border-top: none;
+      padding: clamp(8px, 1.6vh, 12px);
     }
+
+    /* Header jours */
+    tr:nth-child(2) th { padding: clamp(5px, 1.0vh, 8px); }
 
     th {
       border-top: 1px solid rgba(0,0,0,0.08);
@@ -85,15 +101,27 @@
       color: rgba(255,255,255,0.7);
     }
 
-    tr:nth-child(2) th { padding: 6px; }
-    td { padding: 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    td {
+      padding: 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      height: var(--cell-h);     /* IMPORTANT: cellules = hauteur calculée */
+    }
 
     td > span {
       color: var(--text);
-      padding: 10px;
-      display: block;
+      height: 100%;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: var(--cell-pad);
       border: 2px solid transparent;
+
+      font-size: clamp(11px, 1.9vh, 14px);
+      line-height: 1;
       transition: background 0.2s ease, color 0.2s ease;
+      user-select: none;
     }
 
     td:nth-child(even) > span { background-color: rgba(0,0,0,0.02); }
@@ -134,9 +162,10 @@
     button:focus { outline: none; }
 
     footer {
-      margin-top: 10px;
+      flex: 0 0 auto;
       font-size: 12px;
       opacity: 0.6;
+      text-align: center;
     }
     footer a { color: #000; text-decoration: none; }
   </style>
@@ -150,9 +179,7 @@
 
   <script>
     var mesos = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-
-    // Lundi premier jour
-    var dies_abr = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+    var dies_abr = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']; // Lundi premier jour
 
     Number.prototype.pad = function(num) {
       var str = '';
@@ -161,8 +188,31 @@
     }
 
     function mondayIndex(jsDay /* 0=Dim .. 6=Sam */) {
-      // convertit en: 0=Lun .. 6=Dim
-      return (jsDay + 6) % 7;
+      return (jsDay + 6) % 7; // -> 0=Lun .. 6=Dim
+    }
+
+    function fitCalendar(widget) {
+      // On cible la table active (ou la dernière)
+      var table = widget.querySelector('table.actiu') || widget.querySelector('table:last-of-type');
+      if (!table) return;
+
+      // Hauteur dispo dans l'embed
+      var totalH = widget.clientHeight;
+
+      // Hauteur des 2 lignes d'en-tête (mois + jours)
+      var h0 = table.rows[0] ? table.rows[0].offsetHeight : 0;
+      var h1 = table.rows[1] ? table.rows[1].offsetHeight : 0;
+      var headerH = h0 + h1;
+
+      // Place restante pour 6 lignes de jours
+      var avail = Math.max(0, totalH - headerH);
+      var cellH = Math.max(24, Math.floor(avail / 6));
+
+      // Un padding qui suit la taille (évite des chiffres “écrasés”)
+      var cellPad = Math.max(2, Math.min(10, Math.floor(cellH * 0.12)));
+
+      widget.style.setProperty('--cell-h', cellH + 'px');
+      widget.style.setProperty('--cell-pad', cellPad + 'px');
     }
 
     function calendari(widget, data) {
@@ -248,11 +298,11 @@
 
           span.innerHTML = actual.getDate();
 
-          if (actual.getMonth() !== data.getMonth()) cell.className = 'fora';
+          // combine classes proprement
+          if (actual.getMonth() !== data.getMonth()) cell.classList.add('fora');
 
-          // "Aujourd’hui"
           if (actual.getFullYear() === todayY && actual.getMonth() === todayM && actual.getDate() === todayD) {
-            cell.className = 'avui';
+            cell.classList.add('avui');
           }
 
           actual.setDate(actual.getDate() + 1);
@@ -262,9 +312,11 @@
         e.appendChild(row);
       }
 
+      // IMPORTANT: sizing après rendu DOM
       setTimeout(function() {
         e.className = 'actiu';
         original.className += diff === 0 ? ' amagat-dreta' : ' amagat-esquerra';
+        fitCalendar(widget);
       }, 20);
 
       original.className = 'inactiu';
@@ -275,7 +327,19 @@
       }, 1000);
     }
 
-    calendari(document.getElementById('calendari'), new Date());
+    // Init
+    var widgetEl = document.getElementById('calendari');
+    calendari(widgetEl, new Date());
+    fitCalendar(widgetEl);
+
+    // Ré-adapte si l'embed Notion change de taille
+    var resizeTimer = null;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function() {
+        fitCalendar(widgetEl);
+      }, 50);
+    });
   </script>
 </body>
 </html>
