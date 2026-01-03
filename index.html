@@ -4,18 +4,32 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Calendrier</title>
+
   <style>
     :root{
       --accent:#BE4339;
       --text:#555;
-      --shadow: 0px 1px 4px rgba(0,0,0,0.18);
 
-      /* Sera calculé en JS en fonction de la hauteur dispo */
+      /* Variables responsives (set via JS) */
+      --month-font: 18px;
+      --year-font: 12px;
+
+      --day-font: 12px;
+      --day-pad-y: 6px;
+      --day-pad-x: 0px;
+
+      --date-font: 14px;
       --cell-h: 44px;
       --cell-pad: 6px;
+
+      --nav-size: 30px;
+      --nav-font: 18px;
+      --top-pad: 10px;
+
+      --radius: 12px;
+      --shadow: 0px 1px 4px rgba(0,0,0,0.18);
     }
 
-    /* IMPORTANT: fond transparent pour bien se fondre dans Notion */
     html, body {
       margin: 0;
       padding: 0;
@@ -27,30 +41,25 @@
     }
     *, *::before, *::after { box-sizing: inherit; }
 
-    /* Le contenu prend toute la hauteur/largeur de l'embed */
     .wrapper {
-      height: 100vh;          /* = hauteur de l'iframe (embed Notion) */
-      width: 100vw;           /* = largeur de l'iframe */
+      height: 100vh;
+      width: 100vw;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      padding: 8px;
+      gap: 6px;
+      padding: 6px;
       align-items: stretch;
       justify-content: stretch;
     }
 
-    button::-moz-focus-inner { border: 0; padding: 0; }
-
-    /* Le widget s’adapte à la taille de l'embed */
     #calendari {
       position: relative;
       overflow: hidden;
       width: 100%;
-      flex: 1 1 auto;         /* prend tout l'espace dispo (reste après le footer) */
-      min-height: 240px;      /* évite un rendu trop petit */
-      font-size: 14px;
+      flex: 1 1 auto;
+      min-height: 160px; /* pour que ça reste utilisable */
       box-shadow: var(--shadow);
-      border-radius: 10px;
+      border-radius: var(--radius);
       background: #fff;
     }
 
@@ -58,113 +67,127 @@
       border-collapse: collapse;
       table-layout: fixed;
       width: 100%;
-      height: 100%;           /* IMPORTANT: table prend toute la hauteur du conteneur */
-      background-color: #fff;
+      height: 100%;
       position: absolute;
       inset: 0;
       transform: translateX(0);
       transition: all 0.3s ease;
+      background: #fff;
     }
-
     table.inactiu { transition: all 0.3s 0.01s ease; }
     table.amagat-esquerra { transform: translateX(-110%); }
     table.amagat-dreta { transform: translateX(110%); }
 
-    td, th { text-align: center; background-color: #fff; }
+    td, th { text-align: center; background: #fff; }
 
-    /* Header mois */
+    /* Ligne mois */
     tr:first-child th {
-      font-size: clamp(14px, 2.2vh, 18px);
-      font-weight: bold;
       border-left: none;
       border-top: none;
-      padding: clamp(8px, 1.6vh, 12px);
-    }
-
-    /* Header jours */
-    tr:nth-child(2) th { padding: clamp(5px, 1.0vh, 8px); }
-
-    th {
-      border-top: 1px solid rgba(0,0,0,0.08);
-      border-right: 1px solid rgba(0,0,0,0.08);
-      background-color: var(--accent);
+      padding: var(--top-pad) 0;
+      background: var(--accent);
       color: #fff;
-      text-shadow: 0px -1px 0px rgba(0,0,0,0.15);
-      font-weight: normal;
     }
 
-    th .any {
-      font-size: 12px;
+    .monthTitle {
+      font-size: var(--month-font);
+      font-weight: bold;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .monthTitle .any {
+      font-size: var(--year-font);
       font-weight: normal;
+      opacity: 0.75;
       display: block;
-      text-shadow: none;
-      color: rgba(255,255,255,0.7);
+      line-height: 1.1;
     }
 
+    /* Ligne jours */
+    tr:nth-child(2) th {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      font-size: var(--day-font);
+      padding: var(--day-pad-y) var(--day-pad-x);
+      border-top: 1px solid rgba(0,0,0,0.08);
+      border-right: 1px solid rgba(0,0,0,0.12);
+      white-space: nowrap;         /* évite le retour à la ligne */
+      overflow: hidden;            /* évite le débordement */
+      text-overflow: clip;
+    }
+
+    /* Grille jours */
     td {
       padding: 0;
       border-bottom: 1px solid rgba(0,0,0,0.05);
-      height: var(--cell-h);     /* IMPORTANT: cellules = hauteur calculée */
+      height: var(--cell-h);
     }
 
     td > span {
-      color: var(--text);
       height: 100%;
       width: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
-
       padding: var(--cell-pad);
       border: 2px solid transparent;
-
-      font-size: clamp(11px, 1.9vh, 14px);
+      color: var(--text);
+      font-size: var(--date-font);
       line-height: 1;
-      transition: background 0.2s ease, color 0.2s ease;
       user-select: none;
+      transition: background 0.15s ease, color 0.15s ease;
     }
 
     td:nth-child(even) > span { background-color: rgba(0,0,0,0.02); }
 
-    /* Week-end: Sam + Dim (col 6 et 7 car Lundi = 1) */
+    /* Weekend */
     td:nth-child(6) > span,
     td:nth-child(7) > span { color: var(--accent); }
 
     td.avui > span {
-      font-weight: bold;
-      background-color: var(--accent);
+      font-weight: 700;
+      background: var(--accent);
       color: #fff;
       border: 2px solid rgba(0,0,0,0.08);
     }
-
     td.fora > span { opacity: 0.25; }
-    td > span:hover { background: var(--accent); color: #fff; cursor: default; }
 
-    .boto-next, .boto-prev {
-      background: rgba(255,255,255,0.15);
+    td > span:hover {
+      background: var(--accent);
       color: #fff;
-      font-family: inherit;
-      border: none;
-      font-size: 18px;
-      font-weight: bold;
-      padding: 2px 10px 5px 10px;
-      line-height: 1px;
-      height: 30px;
-      width: 30px;
-      border-radius: 100%;
-      position: absolute;
-      top: 12px;
+      cursor: default;
     }
-    .boto-next { right: 10px; padding-left: 13px; }
-    .boto-prev { left: 10px; padding-right: 13px; }
 
-    .boto-next:hover, .boto-prev:hover { background: rgba(255,255,255,0.25); cursor: pointer; }
+    /* Boutons */
+    .boto-next, .boto-prev {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+      border: none;
+      font-weight: bold;
+      line-height: 1;
+      height: var(--nav-size);
+      width: var(--nav-size);
+      border-radius: 999px;
+      position: absolute;
+      top: 10px;
+      display: grid;
+      place-items: center;
+      font-size: var(--nav-font);
+    }
+    .boto-next { right: 10px; }
+    .boto-prev { left: 10px; }
+
+    .boto-next:hover, .boto-prev:hover { background: rgba(255,255,255,0.28); cursor: pointer; }
     button:focus { outline: none; }
+    button::-moz-focus-inner { border: 0; padding: 0; }
 
+    /* Footer optionnel (tu peux le supprimer si tu veux + de place) */
     footer {
       flex: 0 0 auto;
       font-size: 12px;
-      opacity: 0.6;
+      opacity: 0.55;
       text-align: center;
     }
     footer a { color: #000; text-decoration: none; }
@@ -178,45 +201,106 @@
   </div>
 
   <script>
-    var mesos = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-    var dies_abr = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']; // Lundi premier jour
+    const mesos = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+    // Trois niveaux de labels (on choisit selon la largeur d'une cellule)
+    const dies3 = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+    const dies2 = ['Lu','Ma','Me','Je','Ve','Sa','Di'];
+    const dies1 = ['L','M','M','J','V','S','D'];
 
     Number.prototype.pad = function(num) {
-      var str = '';
-      for (var i = 0; i < (num - this.toString().length); i++) str += '0';
+      let str = '';
+      for (let i = 0; i < (num - this.toString().length); i++) str += '0';
       return str += this.toString();
+    };
+
+    function mondayIndex(jsDay) { // 0=Dim..6=Sam -> 0=Lun..6=Dim
+      return (jsDay + 6) % 7;
     }
 
-    function mondayIndex(jsDay /* 0=Dim .. 6=Sam */) {
-      return (jsDay + 6) % 7; // -> 0=Lun .. 6=Dim
+    function pickDayLabels(cellW){
+      if (cellW < 28) return dies1;
+      if (cellW < 40) return dies2;
+      return dies3;
     }
 
-    function fitCalendar(widget) {
-      // On cible la table active (ou la dernière)
-      var table = widget.querySelector('table.actiu') || widget.querySelector('table:last-of-type');
-      if (!table) return;
+    function applyResponsiveVars(widget){
+      const w = widget.clientWidth;
+      const h = widget.clientHeight;
 
-      // Hauteur dispo dans l'embed
-      var totalH = widget.clientHeight;
+      // Largeur d'une cellule
+      const cellW = Math.max(1, Math.floor(w / 7));
 
-      // Hauteur des 2 lignes d'en-tête (mois + jours)
-      var h0 = table.rows[0] ? table.rows[0].offsetHeight : 0;
-      var h1 = table.rows[1] ? table.rows[1].offsetHeight : 0;
-      var headerH = h0 + h1;
+      // Typo basée sur la taille de cellule (mais bornée)
+      const dayFont  = Math.max(9,  Math.min(12, Math.floor(cellW * 0.42)));
+      const dateFont = Math.max(10, Math.min(16, Math.floor(cellW * 0.50)));
 
-      // Place restante pour 6 lignes de jours
-      var avail = Math.max(0, totalH - headerH);
-      var cellH = Math.max(24, Math.floor(avail / 6));
+      // Hauteur cellule: on vise 6 lignes visibles
+      // On garde une marge pour 2 headers (mois + jours) ~ 72px, mais on ajuste ensuite avec fitGrid()
+      let cellH = Math.max(22, Math.min(54, Math.floor((h - 70) / 6)));
 
-      // Un padding qui suit la taille (évite des chiffres “écrasés”)
-      var cellPad = Math.max(2, Math.min(10, Math.floor(cellH * 0.12)));
+      const cellPad = Math.max(1, Math.min(8, Math.floor(Math.min(cellW, cellH) * 0.12)));
 
+      // Header mois
+      const monthFont = Math.max(13, Math.min(20, Math.floor(Math.min(w, h) * 0.075)));
+      const yearFont  = Math.max(10, Math.min(14, Math.floor(monthFont * 0.7)));
+
+      // Boutons nav
+      const navSize = Math.max(22, Math.min(34, Math.floor(monthFont * 1.6)));
+      const navFont = Math.max(14, Math.min(20, Math.floor(navSize * 0.6)));
+
+      // Padding header jours
+      const dayPadY = Math.max(2, Math.min(7, Math.floor(cellH * 0.14)));
+
+      // Radius / ombre plus light quand c'est petit
+      const radius = (w < 260 || h < 260) ? 10 : 12;
+
+      widget.style.setProperty('--day-font', dayFont + 'px');
+      widget.style.setProperty('--date-font', dateFont + 'px');
       widget.style.setProperty('--cell-h', cellH + 'px');
+      widget.style.setProperty('--cell-pad', cellPad + 'px');
+
+      widget.style.setProperty('--month-font', monthFont + 'px');
+      widget.style.setProperty('--year-font', yearFont + 'px');
+
+      widget.style.setProperty('--nav-size', navSize + 'px');
+      widget.style.setProperty('--nav-font', navFont + 'px');
+
+      widget.style.setProperty('--day-pad-y', dayPadY + 'px');
+      widget.style.setProperty('--radius', radius + 'px');
+
+      // Met à jour les libellés des jours sur la table active
+      const labels = pickDayLabels(cellW);
+      const table = widget.querySelector('table.actiu') || widget.querySelector('table');
+      if (table && table.rows && table.rows[1]) {
+        const ths = table.rows[1].querySelectorAll('th');
+        ths.forEach((th, i) => th.textContent = labels[i] || th.textContent);
+      }
+    }
+
+    function fitGridHeight(widget){
+      // Ajuste précisément la hauteur des cellules en fonction de la hauteur réelle des headers
+      const table = widget.querySelector('table.actiu') || widget.querySelector('table');
+      if (!table || !table.rows || table.rows.length < 3) return;
+
+      const totalH = widget.clientHeight;
+      const h0 = table.rows[0].offsetHeight || 0;
+      const h1 = table.rows[1].offsetHeight || 0;
+      const headerH = h0 + h1;
+
+      const avail = Math.max(0, totalH - headerH);
+      const cellH = Math.max(22, Math.floor(avail / 6));
+      widget.style.setProperty('--cell-h', cellH + 'px');
+
+      // padding recalculé en fonction de la nouvelle hauteur
+      const w = widget.clientWidth;
+      const cellW = Math.max(1, Math.floor(w / 7));
+      const cellPad = Math.max(1, Math.min(8, Math.floor(Math.min(cellW, cellH) * 0.12)));
       widget.style.setProperty('--cell-pad', cellPad + 'px');
     }
 
     function calendari(widget, data) {
-      var original = widget.getElementsByClassName('actiu')[0];
+      let original = widget.getElementsByClassName('actiu')[0];
 
       if (typeof original === 'undefined') {
         original = document.createElement('table');
@@ -228,12 +312,11 @@
         widget.appendChild(original);
       }
 
-      var diff = data - new Date(original.getAttribute('data-actual'));
+      let diff = data - new Date(original.getAttribute('data-actual'));
       diff = new Date(diff).getMonth();
 
-      var e = document.createElement('table');
+      const e = document.createElement('table');
       e.className = diff === 0 ? 'amagat-esquerra' : 'amagat-dreta';
-      e.innerHTML = '';
       widget.appendChild(e);
 
       e.setAttribute('data-actual',
@@ -242,22 +325,25 @@
         data.getDate().pad(2)
       );
 
-      // Titre
-      var fila = document.createElement('tr');
-      var titol = document.createElement('th');
+      // ----- Ligne titre mois
+      let fila = document.createElement('tr');
+      let titol = document.createElement('th');
       titol.setAttribute('colspan', 7);
 
-      var boto_prev = document.createElement('button');
+      let boto_prev = document.createElement('button');
       boto_prev.className = 'boto-prev';
       boto_prev.innerHTML = '&#9666;';
 
-      var boto_next = document.createElement('button');
+      let boto_next = document.createElement('button');
       boto_next.className = 'boto-next';
       boto_next.innerHTML = '&#9656;';
 
+      const monthWrap = document.createElement('span');
+      monthWrap.className = 'monthTitle';
+      monthWrap.innerHTML = `${mesos[data.getMonth()]} <span class="any">${data.getFullYear()}</span>`;
+
       titol.appendChild(boto_prev);
-      titol.appendChild(document.createElement('span')).innerHTML =
-        mesos[data.getMonth()] + '<span class="any">' + data.getFullYear() + '</span>';
+      titol.appendChild(monthWrap);
       titol.appendChild(boto_next);
 
       boto_prev.onclick = function() {
@@ -272,35 +358,36 @@
       fila.appendChild(titol);
       e.appendChild(fila);
 
-      // Header jours (Lun->Dim)
+      // ----- Header jours (choix selon la largeur)
       fila = document.createElement('tr');
-      for (var i = 0; i < 7; i++) {
-        fila.innerHTML += '<th>' + dies_abr[i] + '</th>';
+      const cellW = Math.max(1, Math.floor(widget.clientWidth / 7));
+      const labels = pickDayLabels(cellW);
+      for (let i = 0; i < 7; i++) {
+        const th = document.createElement('th');
+        th.textContent = labels[i];
+        fila.appendChild(th);
       }
       e.appendChild(fila);
 
-      // Grille: on part du lundi avant le 1er du mois
-      var firstOfMonth = new Date(data.getFullYear(), data.getMonth(), 1);
-      var offset = mondayIndex(firstOfMonth.getDay()); // 0..6
-      var actual = new Date(data.getFullYear(), data.getMonth(), 1 - offset);
+      // ----- Grille jours (6 semaines)
+      const firstOfMonth = new Date(data.getFullYear(), data.getMonth(), 1);
+      const offset = mondayIndex(firstOfMonth.getDay()); // 0..6
+      let actual = new Date(data.getFullYear(), data.getMonth(), 1 - offset);
 
-      var today = new Date();
-      var todayY = today.getFullYear(), todayM = today.getMonth(), todayD = today.getDate();
+      const today = new Date();
+      const todayY = today.getFullYear(), todayM = today.getMonth(), todayD = today.getDate();
 
-      // 6 semaines
-      for (var s = 0; s < 6; s++) {
-        var row = document.createElement('tr');
+      for (let s = 0; s < 6; s++) {
+        const row = document.createElement('tr');
 
-        for (var d = 0; d < 7; d++) {
-          var cell = document.createElement('td');
-          var span = document.createElement('span');
+        for (let d = 0; d < 7; d++) {
+          const cell = document.createElement('td');
+          const span = document.createElement('span');
+
+          span.textContent = actual.getDate();
           cell.appendChild(span);
 
-          span.innerHTML = actual.getDate();
-
-          // combine classes proprement
           if (actual.getMonth() !== data.getMonth()) cell.classList.add('fora');
-
           if (actual.getFullYear() === todayY && actual.getMonth() === todayM && actual.getDate() === todayD) {
             cell.classList.add('avui');
           }
@@ -308,37 +395,40 @@
           actual.setDate(actual.getDate() + 1);
           row.appendChild(cell);
         }
-
         e.appendChild(row);
       }
 
-      // IMPORTANT: sizing après rendu DOM
+      // Anim + cleanup
       setTimeout(function() {
         e.className = 'actiu';
         original.className += diff === 0 ? ' amagat-dreta' : ' amagat-esquerra';
-        fitCalendar(widget);
+
+        // Responsive sizing après rendu réel
+        applyResponsiveVars(widget);
+        fitGridHeight(widget);
       }, 20);
 
       original.className = 'inactiu';
 
       setTimeout(function() {
-        var inactius = document.getElementsByClassName('inactiu');
-        for (var i = 0; i < inactius.length; i++) widget.removeChild(inactius[i]);
-      }, 1000);
+        const inactius = widget.getElementsByClassName('inactiu');
+        // Attention: HTMLCollection live, on supprime jusqu'à vide
+        while (inactius.length) widget.removeChild(inactius[0]);
+      }, 900);
     }
 
     // Init
-    var widgetEl = document.getElementById('calendari');
+    const widgetEl = document.getElementById('calendari');
     calendari(widgetEl, new Date());
-    fitCalendar(widgetEl);
 
-    // Ré-adapte si l'embed Notion change de taille
-    var resizeTimer = null;
-    window.addEventListener('resize', function() {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(function() {
-        fitCalendar(widgetEl);
-      }, 50);
+    // Resize: re-tune
+    let t = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        applyResponsiveVars(widgetEl);
+        fitGridHeight(widgetEl);
+      }, 60);
     });
   </script>
 </body>
